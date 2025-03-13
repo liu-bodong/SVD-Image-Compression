@@ -38,7 +38,7 @@
 \sectionfont{\Large\sc}
 \subsectionfont{\sc}
 \usepackage[margin=1 in]{geometry}
-\DeclareMathOperator{\Tr}{Tr}
+\DeclareMathOperator{\Tra}{Tr}
 
 \DeclarePairedDelimiter{\abs}{\lvert}{\rvert}
 \DeclarePairedDelimiter{\norm}{\lVert}{\rVert}
@@ -108,16 +108,16 @@ $$
 Using your $QR$ factorization, implement Algorithm 1. This is written as a matrix least squares problem, but think about the Frobenius norm and how you might be able to split it up into problems we know how to solve. \textbf{Please explain how you do this in the project report.} Practically, it is possible to then block some of these operations together for efficiency; you may take advantage of this if you wish.}
 Given a QR factorization for $Z=QR$, and suppose $A-WZ^\top=B\in\mathbb R^{m\times n}$ 
 \begin{align*}
-  \norm{A-WZ^\top}_F^2&=\Tr \PAREN*{(A-WZ^\top)^\top (A-WZ^\top)}
-  \\ &= \Tr \PAREN*{A^\top A} - 2\Tr \PAREN*{A^\top WZ^\top} + \Tr\PAREN*{ZW^\top WZ^\top}
+  \norm{A-WZ^\top}_F^2&=\Tra \PAREN*{(A-WZ^\top)^\top (A-WZ^\top)}
+  \\ &= \Tra \PAREN*{A^\top A} - 2\Tra \PAREN*{A^\top WZ^\top} + \Tra\PAREN*{ZW^\top WZ^\top}
 \end{align*}
 
 We wish to take the derivative with respect to $Z$. We observe the following:
 
 \begin{align*}
-  \nabla_W\Tr\PAREN*{A^\top A}&=0                      \\ 
-  \nabla_W\Tr\PAREN*{2A^\top WZ^\top}&=-2AZ \\
-  \nabla_W\Tr\PAREN*{ZW^\top WZ^\top}=\nabla_W\Tr\PAREN*{WZ^\top ZW^\top}&=2W Z^\top Z
+  \nabla_W\Tra\PAREN*{A^\top A}&=0                      \\ 
+  \nabla_W\Tra\PAREN*{2A^\top WZ^\top}&=-2AZ \\
+  \nabla_W\Tra\PAREN*{ZW^\top WZ^\top}=\nabla_W\Tra\PAREN*{WZ^\top ZW^\top}&=2W Z^\top Z
 \end{align*}
 
 Setting the derivative to 0, we have:
@@ -246,7 +246,51 @@ $. Then we can easily solve the system.
 \paragraph{Goal 5:}
 Using your implementation, load each of the image files in Image*.csv and associated masks Mask*.csv, where * is 1, 2, and 3. Each file contains an image and the associated mask file contains an image of the same size whose entries are 1 if the corresponding entry of $C$ is observed and 0 if it is unobserved (so it defines the set $\Omega$). The unknown entries of $C$ have been set arbitrarily and you should not access or use them (as the will adversely affect your results). Using Algorithm~\ref{alg:als2}, try and recover each of the underlying images. You now have some parameters to consider and we encourage exploration of their values. You should not have to go to $k$ larger than 75 for any of the examples, and good $\beta$ to try are between $10^{-2}$ and 1. Report the images you recover, and discuss what you observe.}
 
+Effects of $\beta$:
+A small regularization constant means weak penalization of large entries in the factor matrices. This can result in a closer fit to the observed data but may also amplify noise, potentially leading to an unstable approximation that overfits the observed pixels. A bigger $\beta$ imposes a harsher penalty, enforcing smaller norms on $W$ and $Z$. A large $\beta$ helps prevent overfitting and improves the stability of the solution by smoothing the reconstructed image. However, a very large $\beta$ might over do it and make the image too smooth for details to be observable. As we can see from the comparison of 3 image2.png generated on different $\beta$ values, the one generated with very small $\beta=0.01$ has observable artifacts running through the image horizontally and vertically. The one generated with very large $\beta=1$ does not have the issues of the low $\beta$ one, but the important details such as facial features and cloth folds are smoothed out, which we can see by a comparison with the image generated with $\beta=0.5$.
 
+\begin{figure}[H]
+  \centering
+  \begin{minipage}{0.3\textwidth}
+    \centering
+    \includegraphics[width=1\textwidth]{./images/201.png}
+    \caption{$\beta=1$, $k=30$, iter=5}
+  \end{minipage}\hfill
+  \begin{minipage}{0.3\textwidth}
+    \centering
+    \includegraphics[width=1\textwidth]{./images/202.png}
+    \caption{$\beta=0.5$, $k=30$, iter=5}
+  \end{minipage}\hfill
+  \begin{minipage}{0.3\textwidth}
+    \centering
+    \includegraphics[width=1\textwidth]{./images/203.png}
+    \caption{$\beta=0.01$, $k=30$, iter=5}
+  \end{minipage}
+\end{figure}
+
+Effects of $k$:
+A smaller rank forces a more compressed approximation that may oversimplify the image. This often results in a smooth or blurry reconstruction that neglects fine details, as the model lacks enough capacity to represent complex structures. A bigger $k$ allows the algorithm to capture more nuances and intricate details, leading to a reconstruction that is closer to the original image. However, if $k$ is too high, especially when the data is sparse or contaminated with noise, it may overfit the observed pixels, thereby including unwanted noise or artifacts. We can look at the comparison of the three images generated using different $k$ values ($k=10,20, 30$). It is quite obvious that as $k$ gets higher, more details are observable. Also note that a bigger $k$ is much more computationally heavy, by a quadratic factor.
+
+\begin{figure}[H]
+  \centering
+  \begin{minipage}{0.3\textwidth}
+    \centering
+    \includegraphics[width=1\textwidth]{./images/204.png}
+    \caption{$\beta=0.6$, $k=10$, iter=5}
+  \end{minipage}\hfill
+  \begin{minipage}{0.3\textwidth}
+    \centering
+    \includegraphics[width=1\textwidth]{./images/205.png}
+    \caption{$\beta=0.6$, $k=20$, iter=5}
+  \end{minipage}\hfill
+  \begin{minipage}{0.3\textwidth}
+    \centering
+    \includegraphics[width=1\textwidth]{./images/206.png}
+    \caption{$\beta=0.6$, $k=30$, iter=5}
+  \end{minipage}
+\end{figure}
+
+More examples and images are available in the appendix.
 
 \includepdf[pages=-]{./code.pdf}
 
