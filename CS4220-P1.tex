@@ -15,6 +15,9 @@
 \usepackage{tcolorbox}
 \usepackage{mathtools}
 \usepackage{pdfpages}
+\usepackage{multicol}
+\usepackage{lipsum}
+\usepackage{mwe}
 \graphicspath{ {./images/} }
 
 
@@ -146,11 +149,29 @@ Thus, the $W$ that solves $RW^\top =Q^\top A^\top$ achieves the least squares mi
 
 The Python implementation can be found in the appendix.\\
 
+\newpage
 \bluebox{
 \paragraph{Goal 3:}
 Using your implementation, load the file Cornell.csv which has an image stored in the matrix $C$ and try to compute the best rank 75 approximation of the image. Compare this with the result of the best rank 75 image from the SVD (you can use a built in routine to compute this), what do you observe qualitatively and quantitatively?}
 
+The SVD approximation has a clearer and more detailed image, although just by a little. There is less ``noise" that is present in the white areas of the image. On the other hand, QR/ALS approximation was a bit blurrier and had noise in the ``white'' portions of the image. ALS approximation also improved (compared to itself) with more iterations and depending on the initialization. Quantitatively the SVD has the optimal/lowest norm possible. In terms of runtime, ALS ran for significantly longer, and seems to be less computationally efficients than directly computing the SVD solution.
 
+
+\begin{figure}[H]
+  \centering
+  \begin{minipage}{0.45\textwidth}
+    \centering
+    \includegraphics[width=0.9\textwidth]{./images/ALS.png}
+    \caption{ALS approx}
+  \end{minipage}\hfill
+  \begin{minipage}{0.45\textwidth}
+    \centering
+    \includegraphics[width=0.9\textwidth]{./images/SVD.png}
+    \caption{SVD approx}
+  \end{minipage}
+\end{figure}
+
+The code to generate these images can be located in the appendix at the end.
 
 \newpage
 \bluebox{
@@ -174,30 +195,59 @@ We observe the quantity that we want to minimize:
 
 Thus, since $\norm{Ax-b}_2^2+\beta^2\norm x_2^2=\norm*{\begin{bmatrix} A \\ \beta I\end{bmatrix}x - \begin{bmatrix}b \\ 0\end{bmatrix}}^2_2$, their minimums are the same, thus solving one is the same as solving the other problem.
 
-
+\newpage
 \bluebox{
 \paragraph{Goal 4:}
 Using your $QR$ factorization, implement Algorithm 2. From the first set of goals, you should have worked out how to split this up into solving many least squares problems. Now, you have to think about what size those problems are, and which entries of the matrices they involve. Given that, you can then leverage your $QR$ factorization and the preceding item to implement the algorithm. \textbf{Please explain how you do this in the project report.}}
 
-\newpage
-\begin{algorithm}
-\caption{Alternating least squares, with regularization and unknown entries}
-\label{alg:als2}
-\begin{algorithmic}[1]
-\State {\bf initialize} $W \in \R^{n_1 \times k}$, $Z \in \R^{n_2 \times k}$
-\While{not converged}
-  \State $$Z \leftarrow \argmin_{Z}\left\|A - WZ^T\right\|^2_{F,\Omega} + \beta^2\left\|Z\right\|_F^2$$ 
-  \State $$W \leftarrow \argmin_{W}\left\|A - WZ^T\right\|^2_{F,\Omega} + \beta^2\left\|W\right\|_F^2$$
-\EndWhile
-\State {\bf return} $W$, $Z$
-\end{algorithmic}
-\end{algorithm}
+\noindent The algorithm we implemented simplifies the problem into two quadratic problems that could be individually handled by QR factorization: \\
+
+\noindent
+Initialization:\\
+We have the inputting matrix $A$ with shape $(n \times m)$, the rank $k$, and the regularization constant $\beta$. Initialize matrix $W$ $(n \times k)$, and matrix $Z$ $(m \times k)$ with random entries.\\
+
+\noindent
+Main Loop:\\
+The algorithm iteratively estimates $W$ and $Z$ over a fixed number of iterations of the user's choice. At each iteration of the main loop, there are two loops that update $W$ and $Z$ respectively.
+
+
+\noindent
+ (a) Sub Loop for Updating $Z$ (Column Update)
+\begin{enumerate}
+\item For each column $j$ of $A$, the algorithm identifies the set of row indices where an observation exists by checking the mask.
+
+\item If no observations are present on the column $j$, we set $Z[j, :]$ to 0 and skip to next iteration.
+
+\item Otherwise, the algorithm forms a "local" sub-problem using $W_{\text{sub}}$, which is a subset of rows from $W$ where observations exist on the column $j$, and the algorithm forms $A_{\text{sub}}$, which holds the values of the observed entries in column $j$.
+                $$W_{\text{sub}}=W[\text{observed, :}], A_{\text{sub}}=A[\text{observed}, j]$$
+\item Then we can solve the regularized least squares problem as presented below:
+$$\text{minimize }\|W_{\text{sub}}z - A_{\text{sub}}\|^2+\beta^2\|z\|^2$$
+Which is equivalent of solving the below as shown by Question 1 by augmenting $W_{\text{sub}}$ with $\beta I$, and augmenting $A$ with zeros. This converts the problem into a least squares problem.
+
+\item The system is solved by using QR factorization. More specifically, we obtain the $R$ matrix and the Householder vectors. Then we apply the Householder vectors the right hand side 
+$
+\begin{bmatrix}
+    A_{\text{sub}} & 0
+\end{bmatrix}^\top
+$. Then we can easily solve the system.
+
+\item The algorithm inserts the solution to the $j$-th row of $Z$, ie, $Z[j,:]$.
+\end{enumerate}
+(b) Sub Loop for Updating $W$ (Row Update)
+\begin{enumerate}
+ \item This sub loop is analogous to the column update but applied row-wise. 
+ \item Depending on if there exists observations, we either set $W[i, :]$ to zeros, or update $W[i,:]$ using the rows from $Z$  ($Z_{\text{sub}}$) and actual values from $A$ ($A_{\text{sub}}$). 
+ $$Z_{\text{sub}}=W[\text{observed, :}], A_{\text{sub}}=A[i, \text{observed}]$$
+ \item The rest is the same operations with different inputs as the column update.
+ (end of algorithm)
+\end{enumerate}
 
 \bluebox{
 \paragraph{Goal 5:}
 Using your implementation, load each of the image files in Image*.csv and associated masks Mask*.csv, where * is 1, 2, and 3. Each file contains an image and the associated mask file contains an image of the same size whose entries are 1 if the corresponding entry of $C$ is observed and 0 if it is unobserved (so it defines the set $\Omega$). The unknown entries of $C$ have been set arbitrarily and you should not access or use them (as the will adversely affect your results). Using Algorithm~\ref{alg:als2}, try and recover each of the underlying images. You now have some parameters to consider and we encourage exploration of their values. You should not have to go to $k$ larger than 75 for any of the examples, and good $\beta$ to try are between $10^{-2}$ and 1. Report the images you recover, and discuss what you observe.}
 
 
-\includepdf[pages=-]{./SVD-Image-Compression/code.pdf}
+
+\includepdf[pages=-]{./code.pdf}
 
 \end{document}
